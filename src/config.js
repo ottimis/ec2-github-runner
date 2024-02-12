@@ -12,12 +12,16 @@ class Config {
       securityGroupId: core.getInput('security-group-id'),
       label: core.getInput('label'),
       ec2InstanceId: core.getInput('ec2-instance-id'),
+      ec2Region: core.getInput('ec2-region'),
       iamRoleName: core.getInput('iam-role-name'),
       runnerHomeDir: core.getInput('runner-home-dir'),
       preRunnerScript: core.getInput('pre-runner-script'),
+      autoTermination: core.getInput('auto-termination') === 'true',
+      terminationDelay: parseInt(core.getInput('termination-delay')) || 0,
     };
 
     const tags = JSON.parse(core.getInput('aws-resource-tags'));
+    this.input.tags = tags;
     this.tagSpecifications = null;
     if (tags.length > 0) {
       this.tagSpecifications = [{ResourceType: 'instance', Tags: tags}, {ResourceType: 'volume', Tags: tags}];

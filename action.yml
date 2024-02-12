@@ -49,6 +49,11 @@ inputs:
       The id is used to terminate the EC2 instance when the runner is not needed anymore.
       This input is required if you use the 'stop' mode.
     required: false
+  ec2-reuse-instance:
+    description: >-
+        Reuse the existing EC2 instance if tags match.
+        This input is required if you use the 'start' mode.
+    required: false
   iam-role-name:
     description: >-
       IAM Role Name to attach to the created EC2 instance.
@@ -61,6 +66,11 @@ inputs:
       for example: '[{"Key": "TagKey1", "Value": "TagValue1"}, {"Key": "TagKey2", "Value": "TagValue2"}]'
     required: false
     default: '[]'
+  ec2-region:
+    description: >-
+      AWS Region where the EC2 instance will be launched.
+      This input is required if you use the 'start' mode.
+    required: false
   runner-home-dir:
     description: >-
       Directory that contains actions-runner software and scripts. E.g. /home/runner/actions-runner.
@@ -68,6 +78,16 @@ inputs:
   pre-runner-script:
     description: >-
       Specifies bash commands to run before the runner starts. It's useful for installing dependencies with apt-get, yum, dnf, etc.
+    required: false
+  auto-termination:
+    description: >-
+        Automatically terminate the runner after the job is completed.
+        This input is required if you use the 'start' mode.
+    required: false
+  termination-delay:
+    description: >-
+        The delay in seconds before the runner is terminated after the job is completed.
+        This input is required if you use the 'start' mode.
     required: false
 
 outputs:

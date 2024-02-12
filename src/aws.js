@@ -35,6 +35,29 @@ function buildUserDataScript(githubRegistrationToken, label) {
 async function startEc2Instance(label, githubRegistrationToken) {
   const ec2 = new AWS.EC2();
 
+  // Find for existing instance with same tag
+  const describeInstancesParams = {
+    Filters: [],
+  };
+  config.input.tags.forEach(tag => {
+    describeInstancesParams.Filters.push({
+      Name: `tag:${tag.Key}`,
+      Values: [tag.Value],
+    });
+  });
+
+  try {
+    const result = await ec2.describeInstances(describeInstancesParams).promise();
+    if (result.Reservations.length > 0) {
+      const instanceId = result.Reservations[0].Instances[0].InstanceId;
+      core.info(`AWS EC2 instance ${instanceId} is already running`);
+      return instanceId;
+    }
+  } catch (error) {
+    core.error('AWS EC2 instance searching error');
+    throw error;
+  }
+
   const userData = buildUserDataScript(githubRegistrationToken, label);
 
   const params = {
@@ -53,6 +76,35 @@ async function startEc2Instance(label, githubRegistrationToken) {
     const result = await ec2.runInstances(params).promise();
     const ec2InstanceId = result.Instances[0].InstanceId;
     core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
+    // Create new alarm on CloudWatch if auto-terminate is enabled
+    if (config.input.autoTermination) {
+      const cloudwatch = new AWS.CloudWatch();
+      const cloudwatchParams = {
+        AlarmName: `Terminate-${ec2InstanceId}`,
+        ComparisonOperator: 'LessThanThreshold',
+        EvaluationPeriods: config.input.terminationDelay,
+        MetricName: 'CPUUtilization',
+        Namespace: 'AWS/EC2',
+        Period: 60,
+        Statistic: 'Average',
+        Threshold: 1,
+        ActionsEnabled: true,
+        AlarmDescription: `Terminate instance ${ec2InstanceId} when CPU utilization is less than 1%`,
+        Dimensions: [
+          {
+            Name: 'InstanceId',
+            Value: ec2InstanceId,
+          },
+        ],
+        // Terminate the instance
+        AlarmActions: [
+          `arn:aws:automate:${config.input.ec2Region}:ec2:terminate`
+        ],
+        Unit: 'Percent',
+      };
+      await cloudwatch.putMetricAlarm(cloudwatchParams).promise();
+      core.info(`CloudWatch alarm Terminate-${ec2InstanceId} is created`);
+    }
     return ec2InstanceId;
   } catch (error) {
     core.error('AWS EC2 instance starting error');
