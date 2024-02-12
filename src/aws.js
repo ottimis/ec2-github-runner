@@ -35,27 +35,29 @@ function buildUserDataScript(githubRegistrationToken, label) {
 async function startEc2Instance(label, githubRegistrationToken) {
   const ec2 = new AWS.EC2();
 
-  // Find for existing instance with same tag
-  const describeInstancesParams = {
-    Filters: [],
-  };
-  config.input.tags.forEach(tag => {
-    describeInstancesParams.Filters.push({
-      Name: `tag:${tag.Key}`,
-      Values: [tag.Value],
+  if (config.input.ec2ReuseInstance) {
+    // Find for existing instance with same tag
+    const describeInstancesParams = {
+      Filters: [],
+    };
+    config.input.tags.forEach(tag => {
+      describeInstancesParams.Filters.push({
+        Name: `tag:${tag.Key}`,
+        Values: [tag.Value],
+      });
     });
-  });
 
-  try {
-    const result = await ec2.describeInstances(describeInstancesParams).promise();
-    if (result.Reservations.length > 0) {
-      const instanceId = result.Reservations[0].Instances[0].InstanceId;
-      core.info(`AWS EC2 instance ${instanceId} is already running`);
-      return instanceId;
+    try {
+      const result = await ec2.describeInstances(describeInstancesParams).promise();
+      if (result.Reservations.length > 0) {
+        const instanceId = result.Reservations[0].Instances[0].InstanceId;
+        core.info(`AWS EC2 instance ${instanceId} is already running`);
+        return instanceId;
+      }
+    } catch (error) {
+      core.error('AWS EC2 instance searching error');
+      throw error;
     }
-  } catch (error) {
-    core.error('AWS EC2 instance searching error');
-    throw error;
   }
 
   const userData = buildUserDataScript(githubRegistrationToken, label);

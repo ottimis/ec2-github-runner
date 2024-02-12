@@ -13,6 +13,7 @@ class Config {
       label: core.getInput('label'),
       ec2InstanceId: core.getInput('ec2-instance-id'),
       ec2Region: core.getInput('ec2-region'),
+      ec2ReuseInstance: core.getInput('ec2-reuse-instance') === 'true',
       iamRoleName: core.getInput('iam-role-name'),
       runnerHomeDir: core.getInput('runner-home-dir'),
       preRunnerScript: core.getInput('pre-runner-script'),
