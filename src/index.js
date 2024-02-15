@@ -1,25 +1,25 @@
-const aws = require('./aws');
-const gh = require('./gh');
 const config = require('./config');
 const core = require('@actions/core');
+const { getRegistrationToken, waitForRunnerRegistered, removeRunner } = require('./gh.js');
+const { startEc2Instance, waitForInstanceRunning, terminateEc2Instance } = require('./aws.js');
 
-function setOutput(label, ec2InstanceId) {
-  core.setOutput('label', label);
+function setOutput(runnerGroup, ec2InstanceId) {
+  core.setOutput('runner-group', runnerGroup);
   core.setOutput('ec2-instance-id', ec2InstanceId);
 }
 
 async function start() {
-  const label = config.generateUniqueLabel();
-  const githubRegistrationToken = await gh.getRegistrationToken();
-  const ec2InstanceId = await aws.startEc2Instance(label, githubRegistrationToken);
-  setOutput(label, ec2InstanceId);
-  await aws.waitForInstanceRunning(ec2InstanceId);
-  await gh.waitForRunnerRegistered(label);
+  const runnerGroup = core.getInput('github-runner-group');
+  const githubRegistrationToken = await getRegistrationToken();
+  const ec2InstanceId = await startEc2Instance(githubRegistrationToken);
+  setOutput(config.input.runnerGroup, ec2InstanceId);
+  await waitForInstanceRunning(ec2InstanceId);
+  await waitForRunnerRegistered(runnerGroup);
 }
 
 async function stop() {
-  await aws.terminateEc2Instance();
-  await gh.removeRunner();
+  await terminateEc2Instance();
+  await removeRunner();
 }
 
 (async function () {

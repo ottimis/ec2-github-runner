@@ -19,13 +19,34 @@ class Config {
       preRunnerScript: core.getInput('pre-runner-script'),
       autoTermination: core.getInput('auto-termination') === 'true',
       terminationDelay: parseInt(core.getInput('termination-delay')) || 0,
+      runnerGroup: 'default',
     };
+
+    const runnerGroup = core.getInput('github-runner-group');
+
+    let runnerGroupTag = { Key: 'runnergroup', Value: 'default' };
+    if (runnerGroup) {
+      runnerGroupTag = { Key: 'runnergroup', Value: runnerGroup };
+      this.input.runnerGroup = runnerGroup;
+    }
 
     const tags = JSON.parse(core.getInput('aws-resource-tags'));
     this.input.tags = tags;
     this.tagSpecifications = null;
     if (tags.length > 0) {
-      this.tagSpecifications = [{ResourceType: 'instance', Tags: tags}, {ResourceType: 'volume', Tags: tags}];
+      this.tagSpecifications = [
+        {
+          ResourceType: 'instance', Tags: [
+            runnerGroupTag,
+            ...tags
+          ]
+        },
+        {
+          ResourceType: 'volume', Tags: [
+            runnerGroupTag,
+            ...tags
+          ]
+        }];
     }
 
     // the values of github.context.repo.owner and github.context.repo.repo are taken from
@@ -33,7 +54,7 @@ class Config {
     // provided by the GitHub Action on the runtime
     this.githubContext = {
       owner: github.context.repo.owner,
-      repo: github.context.repo.repo,
+      // repo: github.context.repo.repo
     };
 
     //

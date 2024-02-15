@@ -15,6 +15,10 @@ inputs:
     description: >-
       GitHub Personal Access Token with the 'repo' scope assigned.
     required: true
+  github-runner-group:
+    description: >-
+      Name of the runner group to which the runner will be added.
+    required: false
   ec2-image-id:
     description: >-
       EC2 Image Id (AMI). The new runner will be launched from this image.

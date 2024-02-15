@@ -1,9 +1,11 @@
-const AWS = require('aws-sdk');
+const { CloudWatchClient, PutMetricAlarmCommand } = require('@aws-sdk/client-cloudwatch');
+const { EC2Client, waitUntilInstanceRunning, DescribeInstancesCommand, RunInstancesCommand, TerminateInstancesCommand } = require('@aws-sdk/client-ec2');
+
 const core = require('@actions/core');
 const config = require('./config');
 
 // User data scripts are run as the root user
-function buildUserDataScript(githubRegistrationToken, label) {
+function buildUserDataScript(githubRegistrationToken, runnerGroup) {
   if (config.input.runnerHomeDir) {
     // If runner home directory is specified, we expect the actions-runner software (and dependencies)
     // to be pre-installed in the AMI, so we simply cd into that directory and then start the runner
@@ -13,32 +15,42 @@ function buildUserDataScript(githubRegistrationToken, label) {
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
       'export RUNNER_ALLOW_RUNASROOT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
+      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --ephemeral --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
       './run.sh',
     ];
   } else {
+    // TODO: Add support for other architectures and newly created runners
     return [
       '#!/bin/bash',
       'mkdir actions-runner && cd actions-runner',
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
       'case $(uname -m) in aarch64) ARCH="arm64" ;; amd64|x86_64) ARCH="x64" ;; esac && export RUNNER_ARCH=${ARCH}',
-      'curl -O -L https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-${RUNNER_ARCH}-2.299.1.tar.gz',
-      'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.299.1.tar.gz',
+      'curl -O -L https://github.com/actions/runner/releases/download/v2.313.0/actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
+      'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
       'export RUNNER_ALLOW_RUNASROOT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
+      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --ephemeral --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
       './run.sh',
     ];
   }
 }
 
-async function startEc2Instance(label, githubRegistrationToken) {
-  const ec2 = new AWS.EC2();
+async function startEc2Instance(githubRegistrationToken) {
+  const ec2 = new EC2Client({ region: config.input.ec2Region});
 
   if (config.input.ec2ReuseInstance) {
     // Find for existing instance with same tag
     const describeInstancesParams = {
-      Filters: [],
+      Filters: [
+        {
+          Name: 'instance-state-name',
+          Values: ['running'],
+        },
+        {
+          Name: 'tag:runnergroup',
+          Values: [config.input.runnerGroup],
+        }
+      ],
     };
     config.input.tags.forEach(tag => {
       describeInstancesParams.Filters.push({
@@ -48,7 +60,8 @@ async function startEc2Instance(label, githubRegistrationToken) {
     });
 
     try {
-      const result = await ec2.describeInstances(describeInstancesParams).promise();
+      const command = new DescribeInstancesCommand(describeInstancesParams);
+      const result = await ec2.send(command);
       if (result.Reservations.length > 0) {
         const instanceId = result.Reservations[0].Instances[0].InstanceId;
         core.info(`AWS EC2 instance ${instanceId} is already running`);
@@ -60,7 +73,7 @@ async function startEc2Instance(label, githubRegistrationToken) {
     }
   }
 
-  const userData = buildUserDataScript(githubRegistrationToken, label);
+  const userData = buildUserDataScript(githubRegistrationToken, config.input.runnerGroup);
 
   const params = {
     ImageId: config.input.ec2ImageId,
@@ -75,14 +88,15 @@ async function startEc2Instance(label, githubRegistrationToken) {
   };
 
   try {
-    const result = await ec2.runInstances(params).promise();
+    const command = new RunInstancesCommand(params);
+    const result = await ec2.send(command);
     const ec2InstanceId = result.Instances[0].InstanceId;
     core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
     // Create new alarm on CloudWatch if auto-terminate is enabled
     if (config.input.autoTermination) {
-      const cloudwatch = new AWS.CloudWatch();
+      const cloudwatch = new CloudWatchClient({ region: config.input.ec2Region });
       const cloudwatchParams = {
-        AlarmName: `Terminate-${ec2InstanceId}`,
+        AlarmName: `GithubRunnerChecker-${ec2InstanceId}`,
         ComparisonOperator: 'LessThanThreshold',
         EvaluationPeriods: config.input.terminationDelay,
         MetricName: 'CPUUtilization',
@@ -104,8 +118,9 @@ async function startEc2Instance(label, githubRegistrationToken) {
         ],
         Unit: 'Percent',
       };
-      await cloudwatch.putMetricAlarm(cloudwatchParams).promise();
-      core.info(`CloudWatch alarm Terminate-${ec2InstanceId} is created`);
+      const command = new PutMetricAlarmCommand(cloudwatchParams);
+      await cloudwatch.send(command);
+      core.info(`CloudWatch alarm GithubRunnerChecker-${ec2InstanceId} is created`);
     }
     return ec2InstanceId;
   } catch (error) {
@@ -115,14 +130,15 @@ async function startEc2Instance(label, githubRegistrationToken) {
 }
 
 async function terminateEc2Instance() {
-  const ec2 = new AWS.EC2();
+  const ec2 = new EC2Client();
 
   const params = {
     InstanceIds: [config.input.ec2InstanceId],
   };
 
   try {
-    await ec2.terminateInstances(params).promise();
+    const command = new TerminateInstancesCommand(params);
+    await ec2.send(command);
     core.info(`AWS EC2 instance ${config.input.ec2InstanceId} is terminated`);
   } catch (error) {
     core.error(`AWS EC2 instance ${config.input.ec2InstanceId} termination error`);
@@ -131,14 +147,17 @@ async function terminateEc2Instance() {
 }
 
 async function waitForInstanceRunning(ec2InstanceId) {
-  const ec2 = new AWS.EC2();
+  const ec2 = new EC2Client();
 
   const params = {
     InstanceIds: [ec2InstanceId],
   };
 
   try {
-    await ec2.waitFor('instanceRunning', params).promise();
+    await waitUntilInstanceRunning({
+      client: ec2,
+      maxWaitTime: 200,
+    }, params);
     core.info(`AWS EC2 instance ${ec2InstanceId} is up and running`);
   } catch (error) {
     core.error(`AWS EC2 instance ${ec2InstanceId} initialization error`);
