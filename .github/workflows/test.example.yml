@@ -1,0 +1,48 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Test action
+
+jobs:
+  start-runner:
+    name: Start runner test for action
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          aws-region: eu-south-1
+          key: ${{ env.AWS_ACCESS_KEY_ID }}
+          secret: ${{ env.AWS_SECRET_ACCESS_KEY }}
+      - name: Start EC2 instance
+        uses: ./
+        with:
+          mode: start
+          ec2-image-id: 'ami-123'
+          ec2-instance-type: 't3.micro'
+          ec2-reuse-instance: 'true'
+          ec2-region: 'eu-south-1'
+          subnet-id: 'subnet-123'
+          security-group-id: 'sg-123'
+          aws-resource-tags: '[{"Key": "Runner", "Value": "1"}]'
+          runner-home-dir: '/home/ubuntu/actions-runner'
+          auto-termination: 'true'
+          termination-delay: '10'
+          github-token: ${{ env.GITHUB_TOKEN }}
+          github-runner-group: 'default'
+  do-the-job:
+    name: Do the job on the runner
+    needs: start-runner # required to start the main job when the runner is ready
+    runs-on:
+      group: ${{ needs.start-runner.outputs.runner-group }}
+    steps:
+      - name: Hello World
+        run: echo 'Hello World!'
