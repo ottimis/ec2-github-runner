@@ -1,6 +1,7 @@
 # On-demand self-hosted AWS EC2 runner for GitHub Actions
+### ⭐️ Organization level oriented ⭐️ 
 
-## ⚠️ This project is an upgrade of the original [machulav/ec2-github-runner], that seems to be abandoned.
+## ⚠️ This project is a fork of the original [machulav/ec2-github-runner], that seems to be abandoned and _repository level oriented_.
 
 ## New features
 - [x] Support for AWS SDK 3
@@ -141,15 +142,49 @@ Use the following steps to prepare your workflow for running on your EC2 self-ho
    }
    ```
 
+    If you use the `ec2-reuse-instance` parameter, you will also need to allow the permissions to describe tags:
+    
+    ```
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:DescribeTags"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+    ```
+   
+If you use the `ec2-auto-termination` parameter, you will also need to allow the permissions to put metric alarm on CloudWatch:
+
+   ```
+   {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "cloudwatch:PutMetricAlarm"
+        ],
+        "Resource": "*"
+      }
+    ]
+   }
+   ```
+
    These example policies above are provided as a guide. They can and most likely should be limited even more by specifying the resources you use.
 
-2. Add the keys to GitHub secrets.
+2. Add the keys to GitHub secrets or use OIDC to authenticate user and assume role with previous policies.
 3. Use the [aws-actions/configure-aws-credentials](https://github.com/aws-actions/configure-aws-credentials) action to set up the keys as environment variables.
 
 **2. Prepare GitHub personal access token**
 
-1. Create a new GitHub personal access token with the `repo` scope.
-   The action will use the token for self-hosted runners management in the GitHub account on the repository level.
+1. Create a new GitHub personal access token with the `repo` and `admin:org` scope.
+   The action will use the token for self-hosted runners management in the GitHub account on the organization level.
 2. Add the token to GitHub secrets.
 
 **3. Prepare EC2 image**
@@ -187,8 +222,6 @@ Alternatively, you can use a vanilla EC2 AMI and set up the dependencies via `pr
 
 1. Create a new GitHub Actions workflow or edit the existing one.
 2. Use the documentation and example below to configure your workflow.
-3. Please don't forget to set up a job for removing the EC2 instance at the end of the workflow execution.
-   Otherwise, the EC2 instance won't be removed and continue to run even after the workflow execution is finished.
 
 Now you're ready to go!
 
@@ -259,17 +292,18 @@ jobs:
         uses: machulav/ec2-github-runner@v2
         with:
           mode: start
-          github-token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          ec2-image-id: ami-123
-          ec2-instance-type: t3.nano
-          subnet-id: subnet-123
-          security-group-id: sg-123
-          iam-role-name: my-role-name # optional, requires additional permissions
-          aws-resource-tags: > # optional, requires additional permissions
-            [
-              {"Key": "Name", "Value": "ec2-github-runner"},
-              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
-            ]
+          ec2-image-id: 'ami-0c7c5083246fe12c2'
+          ec2-instance-type: 't3.micro'
+          ec2-reuse-instance: 'true'
+          ec2-region: 'eu-south-1'
+          subnet-id: 'subnet-056d7186c65b6adf0'
+          security-group-id: 'sg-0ea074c6c05b7badd'
+          aws-resource-tags: '[{"Key": "Runner", "Value": "1"}]'
+          runner-home-dir: '/home/ubuntu/actions-runner'
+          auto-termination: 'true'
+          termination-delay: '10'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-runner-group: 'default'
   do-the-job:
     name: Do the job on the runner
     needs: start-runner # required to start the main job when the runner is ready
@@ -277,6 +311,7 @@ jobs:
     steps:
       - name: Hello World
         run: echo 'Hello World!'
+  # Optional job to stop the runner after the main job is done  
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
@@ -299,12 +334,6 @@ jobs:
           label: ${{ needs.start-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}
 ```
-
-### Real user examples
-
-In [this discussion](https://github.com/machulav/ec2-github-runner/discussions/19), you can find feedback and examples from the users of the action.
-
-If you use this action in your workflow, feel free to add your story there as well 🙌
 
 ## Self-hosted runner security with public repositories
 

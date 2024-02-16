@@ -24,9 +24,9 @@ class Config {
 
     const runnerGroup = core.getInput('github-runner-group');
 
-    let runnerGroupTag = { Key: 'runnergroup', Value: 'default' };
+    let runnerGroupTag = { Key: 'RunnerGroup', Value: 'default' };
     if (runnerGroup) {
-      runnerGroupTag = { Key: 'runnergroup', Value: runnerGroup };
+      runnerGroupTag = { Key: 'RunnerGroup', Value: runnerGroup };
       this.input.runnerGroup = runnerGroup;
     }
 

@@ -19,24 +19,23 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           audience: sts.amazonaws.com
-          aws-region: eu-south-1
-          key: ${{ env.AWS_ACCESS_KEY_ID }}
-          secret: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_RUNNER_REGION }}
+          role-to-assume: ${{ vars.AWS_RUNNER_ROLE }}
       - name: Start EC2 instance
         uses: ./
         with:
           mode: start
-          ec2-image-id: 'ami-123'
+          ec2-image-id: ${{ vars.AWS_RUNNER_AMI_ID }}
           ec2-instance-type: 't3.micro'
           ec2-reuse-instance: 'true'
-          ec2-region: 'eu-south-1'
-          subnet-id: 'subnet-123'
-          security-group-id: 'sg-123'
+          ec2-region: ${{ vars.AWS_RUNNER_REGION }}
+          subnet-id: ${{ vars.AWS_RUNNER_SUBNET_ID }}
+          security-group-id: ${{ vars.AWS_RUNNER_SECURITY_GROUP_ID }}
           aws-resource-tags: '[{"Key": "Runner", "Value": "1"}]'
           runner-home-dir: '/home/ubuntu/actions-runner'
           auto-termination: 'true'
           termination-delay: '10'
-          github-token: ${{ env.GITHUB_TOKEN }}
+          github-token: ${{ secrets.AWS_RUNNER_GITHUB_TOKEN }}
           github-runner-group: 'default'
   do-the-job:
     name: Do the job on the runner
