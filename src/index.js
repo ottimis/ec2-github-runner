@@ -12,7 +12,7 @@ async function start() {
   const runnerGroup = core.getInput('github-runner-group');
   const githubRegistrationToken = await getRegistrationToken();
   const ec2InstanceId = await startEc2Instance(githubRegistrationToken);
-  setOutput(config.input.runnerGroup, ec2InstanceId);
+  setOutput(runnerGroup, ec2InstanceId);
   await waitForInstanceRunning(ec2InstanceId);
   await waitForRunnerRegistered(runnerGroup);
 }

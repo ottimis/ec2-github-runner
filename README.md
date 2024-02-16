@@ -6,7 +6,6 @@
 ## New features
 - [x] Support for AWS SDK 3
 - [x] Support for autoshutdown of the runner after a period of inactivity
-- [x] Runners are now ephimeral.
 - [x] Search for existing runners before starting a new one
 
 If you like the project, please consider [supporting Ukraine](https://bit.ly/3KeY7dc) in a [war](https://en.wikipedia.org/wiki/2022_Russian_invasion_of_Ukraine) against russian occupants. Any help would be much appreciated!

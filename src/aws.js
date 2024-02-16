@@ -15,7 +15,7 @@ function buildUserDataScript(githubRegistrationToken, runnerGroup) {
       `echo "${config.input.preRunnerScript}" > pre-runner-script.sh`,
       'source pre-runner-script.sh',
       'export RUNNER_ALLOW_RUNASROOT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --ephemeral --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
+      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
       './run.sh',
     ];
   } else {
@@ -29,7 +29,7 @@ function buildUserDataScript(githubRegistrationToken, runnerGroup) {
       'curl -O -L https://github.com/actions/runner/releases/download/v2.313.0/actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
       'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.313.0.tar.gz',
       'export RUNNER_ALLOW_RUNASROOT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --ephemeral --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
+      `./config.sh --url https://github.com/${config.githubContext.owner} --token ${githubRegistrationToken} --runnergroup ${runnerGroup} --labels _group-${runnerGroup},_ec2 --unattended`,
       './run.sh',
     ];
   }
