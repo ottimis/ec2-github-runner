@@ -7,7 +7,7 @@ name: Test action
 
 jobs:
   start-runner:
-    name: Start runner test for action
+    name: Start runner test for action (Example)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
