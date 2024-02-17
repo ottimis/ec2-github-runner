@@ -47,7 +47,7 @@ async function startEc2Instance(githubRegistrationToken) {
           Values: ['running'],
         },
         {
-          Name: 'tag:runnergroup',
+          Name: 'tag:RunnerGroup',
           Values: [config.input.runnerGroup],
         }
       ],
