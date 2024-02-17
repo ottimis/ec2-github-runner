@@ -65,7 +65,10 @@ async function startEc2Instance(githubRegistrationToken) {
       if (result.Reservations.length > 0) {
         const instanceId = result.Reservations[0].Instances[0].InstanceId;
         core.info(`AWS EC2 instance ${instanceId} is already running`);
-        return instanceId;
+        return {
+          started: false,
+          instanceId
+        };
       }
     } catch (error) {
       core.error('AWS EC2 instance searching error');
@@ -122,7 +125,10 @@ async function startEc2Instance(githubRegistrationToken) {
       await cloudwatch.send(command);
       core.info(`CloudWatch alarm GithubRunnerChecker-${ec2InstanceId} is created`);
     }
-    return ec2InstanceId;
+    return {
+      started: true,
+      ec2InstanceId
+    };
   } catch (error) {
     core.error('AWS EC2 instance starting error');
     throw error;

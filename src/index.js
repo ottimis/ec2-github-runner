@@ -11,10 +11,12 @@ function setOutput(runnerGroup, ec2InstanceId) {
 async function start() {
   const runnerGroup = core.getInput('github-runner-group');
   const githubRegistrationToken = await getRegistrationToken();
-  const ec2InstanceId = await startEc2Instance(githubRegistrationToken);
-  setOutput(runnerGroup, ec2InstanceId);
-  await waitForInstanceRunning(ec2InstanceId);
-  await waitForRunnerRegistered(runnerGroup);
+  const ec2Instance = await startEc2Instance(githubRegistrationToken);
+  setOutput(runnerGroup, ec2Instance.ec2InstanceId);
+  if (ec2Instance.started)  {
+    await waitForInstanceRunning(ec2Instance.ec2InstanceId);
+    await waitForRunnerRegistered(runnerGroup);
+  }
 }
 
 async function stop() {
