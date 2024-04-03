@@ -81,6 +81,7 @@ async function startEc2Instance(githubRegistrationToken) {
   const params = {
     ImageId: config.input.ec2ImageId,
     InstanceType: config.input.ec2InstanceType,
+
     MinCount: 1,
     MaxCount: 1,
     UserData: Buffer.from(userData.join('\n')).toString('base64'),
@@ -108,6 +109,13 @@ async function startEc2Instance(githubRegistrationToken) {
         Statistic: 'Average',
         Threshold: 1,
         ActionsEnabled: true,
+        // Add Tags to the alarm
+        Tags: [
+          {
+            Key: 'GithubRunnerChecker',
+            Value: '1',
+          }
+        ],
         AlarmDescription: `Terminate instance ${ec2InstanceId} when CPU utilization is less than 1%`,
         Dimensions: [
           {
