@@ -81,6 +81,7 @@ async function startEc2Instance(githubRegistrationToken) {
   const params = {
     ImageId: config.input.ec2ImageId,
     InstanceType: config.input.ec2InstanceType,
+    KeyName: config.input.ec2KeyName ? config.input.ec2KeyName : undefined,
 
     MinCount: 1,
     MaxCount: 1,
