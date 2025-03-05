@@ -29,6 +29,11 @@ inputs:
       EC2 Instance Type. 
       This input is required if you use the 'start' mode.
     required: false
+  ec2-key-name:
+    description: >-
+      EC2 KeyName. 
+      The name of the KeyPair to allow SSH access.
+    required: false
   subnet-id:
     description: >-
       VPC Subnet Id. The subnet should belong to the same VPC as the specified security group.
